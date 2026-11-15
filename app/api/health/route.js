@@ -51,7 +51,9 @@ async function dataforseo() {
 }
 
 export async function GET(req) {
-  if (req.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const key = new URL(req.url).searchParams.get('key');
+  const ok = req.headers.get('authorization') === `Bearer ${process.env.CRON_SECRET}` || key === process.env.CRON_SECRET;
+  if (!process.env.CRON_SECRET || !ok) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const present = Object.fromEntries(KEYS.map(k => [k, !!process.env[k]]));
   const [g, s, a, o, f, d] = await Promise.all([safe(gsc), safe(supabase), safe(anthropic), safe(openai), safe(firecrawl), safe(dataforseo)]);
   return NextResponse.json({ present, gsc: g, supabase: s, anthropic: a, openai: o, firecrawl: f, dataforseo: d });
