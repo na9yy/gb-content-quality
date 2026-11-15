@@ -1,4 +1,7 @@
 import { NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+export const revalidate = 0;
 import { COOKIE } from '@/lib/auth';
 
 export async function GET(req) {

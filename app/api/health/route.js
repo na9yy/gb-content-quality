@@ -3,6 +3,8 @@ import crypto from 'node:crypto';
 import { parseServiceAccount } from '@/lib/google';
 
 export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+export const revalidate = 0;
 
 const KEYS = ['DASHBOARD_PASSWORD','AUTH_SECRET','CRON_SECRET','SUPABASE_URL','SUPABASE_SERVICE_ROLE_KEY','ANTHROPIC_API_KEY','FIRECRAWL_API_KEY','DATAFORSEO_LOGIN','DATAFORSEO_PASSWORD','GSC_SERVICE_ACCOUNT_JSON','GOOGLE_SERVICE_ACCOUNT_JSON','GSC_SITE_URL'];
 

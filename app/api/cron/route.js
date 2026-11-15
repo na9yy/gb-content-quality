@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { processNext } from '@/lib/queue';
 export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+export const revalidate = 0;
 export const maxDuration = 300;
 // Called daily by Vercel Cron (Authorization: Bearer CRON_SECRET). Works the queue for ~4 minutes.
 export async function GET(req) {

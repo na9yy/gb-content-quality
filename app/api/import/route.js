@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { enqueue, expandSitemap, queueStatus, clearQueue } from '@/lib/queue';
 export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+export const revalidate = 0;
 export const maxDuration = 120;
 export async function GET() { return NextResponse.json(await queueStatus()); }
 export async function POST(req) {

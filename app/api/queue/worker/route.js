@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { processNext } from '@/lib/queue';
 import { fireSelf } from '@/lib/selfcall';
 export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+export const revalidate = 0;
 export const maxDuration = 300;
 
 // Background worker: works the queue for ~4 min, then hands off to a fresh worker if items are left.

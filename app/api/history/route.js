@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { history } from '@/lib/insights';
 export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+export const revalidate = 0;
 export async function GET(req) {
   const id = new URL(req.url).searchParams.get('pageId');
   try { return NextResponse.json({ history: await history(id) }); }

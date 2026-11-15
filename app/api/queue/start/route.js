@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/supabase';
 import { fireSelf } from '@/lib/selfcall';
 export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+export const revalidate = 0;
 export const maxDuration = 30;
 
 // Start N background workers (minus ones already running), so processing continues with the tab closed.
