@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import crypto from 'node:crypto';
+import { parseServiceAccount } from '@/lib/google';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,11 +9,8 @@ const KEYS = ['DASHBOARD_PASSWORD','AUTH_SECRET','CRON_SECRET','SUPABASE_URL','S
 async function safe(fn) { try { return await fn(); } catch (e) { return { ok: false, error: String(e.message || e).slice(0, 200) }; } }
 
 async function gsc() {
-  const raw = process.env.GSC_SERVICE_ACCOUNT_JSON || process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-  if (!raw) return { ok: false, error: 'missing' };
-  let sa;
-  try { sa = JSON.parse(raw); } catch { return { ok: false, error: 'not valid JSON (pasted only part of the file?)' }; }
-  if (sa.type !== 'service_account' || !sa.client_email || !sa.private_key) return { ok: false, error: 'JSON is missing client_email/private_key' };
+  const { sa, error, diag } = parseServiceAccount(process.env.GSC_SERVICE_ACCOUNT_JSON || process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+  if (!sa) return { ok: false, error, diag };
   const now = Math.floor(Date.now() / 1000);
   const b64 = o => Buffer.from(JSON.stringify(o)).toString('base64url');
   const unsigned = `${b64({ alg: 'RS256', typ: 'JWT' })}.${b64({ iss: sa.client_email, scope: 'https://www.googleapis.com/auth/webmasters.readonly', aud: 'https://oauth2.googleapis.com/token', iat: now, exp: now + 3600 })}`;
