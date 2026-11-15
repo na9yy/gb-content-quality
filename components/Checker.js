@@ -77,6 +77,27 @@ function Result({ r }) {
   );
 }
 
+const n = v => v == null ? '–' : Number(v).toLocaleString('en-US');
+function Usage({ u, onRefresh }) {
+  if (!u) return <div className="cq-usage"><div className="cq-side-head">Usage</div><div className="cq-faint">Loading…</div></div>;
+  const fc = u.firecrawl || {}, d = u.dataforseo || {}, a = u.app || {};
+  const pct = fc.plan ? Math.max(0, Math.min(100, (fc.remaining / fc.plan) * 100)) : null;
+  return (
+    <div className="cq-usage">
+      <div className="cq-side-head">Usage <button className="cq-link" onClick={onRefresh}>Refresh</button></div>
+      <div className="cq-u-row"><span>Firecrawl credits left</span><b>{fc.ok ? n(fc.remaining) : 'error'}{fc.plan ? <i> / {n(fc.plan)}</i> : null}</b></div>
+      {pct != null && <div className="cq-bar"><div style={{ width: `${pct}%`, background: pct > 25 ? 'var(--up)' : pct > 10 ? 'var(--new)' : 'var(--down)' }} /></div>}
+      {fc.periodEnd && <div className="cq-faint">Resets {new Date(fc.periodEnd).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</div>}
+      <div className="cq-u-row"><span>Checks today / 30d</span><b>{n(a.checksToday)} / {n(a.checks30d)}</b></div>
+      <div className="cq-u-row"><span>Pages tracked</span><b>{n(a.pagesTracked)}</b></div>
+      <div className="cq-u-row"><span>Claude cost 30d</span><b>${a.claude?.estCost30d ?? '–'}</b></div>
+      <div className="cq-u-row"><span>Avg per check</span><b>${a.claude?.avgCostPerCheck ?? '–'}</b></div>
+      <div className="cq-u-row"><span>DataForSEO balance</span><b>{d.ok ? `$${Number(d.balance).toFixed(2)}` : 'error'}</b></div>
+      <div className="cq-faint">{a.claude?.priceNote}</div>
+    </div>
+  );
+}
+
 export default function Checker() {
   const [url, setUrl] = useState('');
   const [busy, setBusy] = useState(false);
@@ -85,20 +106,38 @@ export default function Checker() {
   const [list, setList] = useState([]);
   const [q, setQ] = useState('');
 
+  const [listErr, setListErr] = useState('');
+  const [usage, setUsage] = useState(null);
   async function loadList() {
-    const r = await fetch('/api/results').then(r => r.json()).catch(() => ({}));
-    setList(r.results || []);
+    try {
+      const r = await fetch('/api/results', { cache: 'no-store' });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+      setList(j.results || []); setListErr(''); return j.results || [];
+    } catch (e) { setListErr(`Could not load list: ${e.message}`); return []; }
   }
-  useEffect(() => { loadList(); }, []);
+  async function loadUsage() {
+    const j = await fetch('/api/usage', { cache: 'no-store' }).then(r => r.json()).catch(() => null);
+    setUsage(j);
+  }
+  useEffect(() => { loadList(); loadUsage(); }, []);
 
   async function check(e) {
     e?.preventDefault(); if (!url || busy) return;
     setBusy(true); setErr(''); setResult(null);
-    const r = await fetch('/api/check', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url }) });
-    const j = await r.json().catch(() => ({ error: 'Request failed or timed out' }));
+    const started = Date.now();
+    let r, j;
+    try {
+      r = await fetch('/api/check', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url }) });
+      j = await r.json().catch(() => ({ error: 'Request failed or timed out' }));
+    } catch { j = { error: 'Connection dropped while checking.' }; }
+    const fresh = await loadList(); loadUsage();
     setBusy(false);
-    if (!r.ok) return setErr(j.error || 'Something went wrong');
-    setResult(j); loadList();
+    if (r?.ok) return setResult(j);
+    // request failed on our side, but the server may have finished: open the saved result if there is one
+    const saved = fresh.find(x => x.url && url.includes(new URL(x.url).pathname) && Date.parse(x.scoredAt) >= started - 5000);
+    if (saved) return open(saved.crawlId);
+    setErr(j?.error || 'Something went wrong');
   }
   async function open(id) {
     setErr(''); setResult(null); setBusy(true);
@@ -120,6 +159,8 @@ export default function Checker() {
       </div></div>
       <div className="wrap cq-layout">
         <aside className="cq-side">
+          <Usage u={usage} onRefresh={loadUsage} />
+          {listErr && <div className="cq-err">{listErr}</div>}
           <div className="cq-side-head">Checked pages <span>{list.length}</span></div>
           <input className="cq-filter" placeholder="Filter…" value={q} onChange={e => setQ(e.target.value)} />
           {shown.map(x => (

@@ -550,3 +550,11 @@ button.logo { background: none; border: 0; padding: 0; cursor: pointer; }
 .cq-reason { color: var(--muted); }
 .cq-evidence { color: var(--faint); font-style: italic; margin-top: 2px; border-left: 2px solid var(--panel-3); padding-left: 8px; }
 .cq-foot { color: var(--faint); font-size: 11.5px; margin-top: 12px; }
+
+.cq-usage { border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 10px; }
+.cq-u-row { display: flex; justify-content: space-between; gap: 8px; padding: 3px 4px; font-size: 12.5px; color: var(--muted); }
+.cq-u-row b { color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cq-u-row i { color: var(--faint); font-style: normal; font-weight: 600; }
+.cq-usage .cq-bar { margin: 4px 4px 2px; }
+.cq-faint { color: var(--faint); font-size: 11px; padding: 0 4px; }
+.cq-link { background: none; border: 0; color: var(--blue-light); font: 700 11px var(--font); cursor: pointer; text-transform: none; letter-spacing: 0; }
