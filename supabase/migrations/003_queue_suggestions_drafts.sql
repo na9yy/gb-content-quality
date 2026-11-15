@@ -1,0 +1,3 @@
+-- Applied 2026-11-15 via Supabase migration "003_queue_suggestions_drafts_views":
+-- tables queue, suggestions, drafts; gsc_stats.top_queries + fetched_at;
+-- function claim_queue_item(); view latest_page_scores (security_invoker). Service role only.

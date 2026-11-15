@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { COOKIE, authToken } from './lib/auth';
 
-export const config = { matcher: ['/((?!_next/static|_next/image|favicon.png|logo.png|icon.png|login|api/login|api/health).*)'] };
+export const config = { matcher: ['/((?!_next/static|_next/image|favicon.png|logo.png|icon.png|login|api/login|api/health|api/cron).*)'] };
 
 export async function middleware(req) {
   if (!process.env.DASHBOARD_PASSWORD) {
