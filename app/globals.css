@@ -607,3 +607,7 @@ button.logo { background: none; border: 0; padding: 0; cursor: pointer; }
 .cq-stars button.on { background: var(--blue); border-color: var(--blue); color: #fff; }
 .cq-explain { color: var(--muted); line-height: 1.6; font-size: 13px; }
 .cq-explain b { color: var(--text); } .cq-explain ol { padding-left: 20px; margin: 6px 0; } .cq-explain li { margin-bottom: 4px; }
+
+.cq-live { display: inline-flex; align-items: center; gap: 6px; color: var(--blue-light); font-size: 12px; font-weight: 700; }
+.cq-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--blue-light); animation: cqpulse 1.2s ease-in-out infinite; }
+@keyframes cqpulse { 50% { opacity: .3; } }

@@ -11,69 +11,73 @@ export function ImportView({ onChanged }) {
   const [max, setMax] = useState(200);
   const [st, setSt] = useState(null);
   const [msg, setMsg] = useState('');
-  const [running, setRunning] = useState(false);
-  const [workers, setWorkers] = useState(2);
-  const stop = useRef(false);
-  const load = () => api('/api/import').then(setSt).catch(e => setMsg(e.message));
+  const [workers, setWorkers] = useState(4);
+  const lastDone = useRef(null);
+  const load = () => api('/api/import').then(j => {
+    setSt(j);
+    const d = (j.counts?.done || 0) + (j.counts?.skipped || 0);
+    if (lastDone.current != null && d !== lastDone.current) onChanged?.();
+    lastDone.current = d;
+  }).catch(e => setMsg(e.message));
+  const c = st?.counts || {};
+  const active = (c.pending || 0) + (c.running || 0) > 0;
   useEffect(() => { load(); }, []);
-  useEffect(() => () => { stop.current = true; }, []);
+  // Auto-refresh while the queue is working.
+  useEffect(() => { if (!active) return; const t = setInterval(load, 4000); return () => clearInterval(t); }, [active]);
 
-  async function add() {
+  async function add(andStart) {
     setMsg('Adding…');
     try { const j = await api('/api/import', { method: 'POST', body: JSON.stringify({ urls, sitemap, filter, max }) });
-      setMsg(`Found ${j.found} URLs. Added ${j.added} to the queue${j.skipped ? `, ${j.skipped} already queued` : ''}.`); setUrls(''); load();
+      setMsg(`Found ${j.found} URLs. Added ${j.added} to the queue${j.skipped ? `, ${j.skipped} already queued` : ''}.`); setUrls('');
+      if (andStart && j.added) await start(); else load();
     } catch (e) { setMsg(e.message); }
   }
-  async function worker() {
-    while (!stop.current) {
-      const r = await api('/api/queue/process', { method: 'POST' }).catch(e => ({ error: e.message }));
-      if (r.done) break;
-      load(); onChanged?.();
-      if (r.error && !r.id) { await new Promise(res => setTimeout(res, 3000)); }
-    }
-  }
   async function start() {
-    stop.current = false; setRunning(true);
-    await Promise.all(Array.from({ length: workers }, worker));
-    setRunning(false); load(); onChanged?.();
+    try { const j = await api('/api/queue/start', { method: 'POST', body: JSON.stringify({ workers }) });
+      setMsg(j.started ? `Started ${j.started} background worker${j.started > 1 ? 's' : ''}${j.alreadyRunning ? ` (${j.alreadyRunning} already running)` : ''}. You can close this tab.` : j.pending ? `${j.alreadyRunning} workers already running.` : 'Nothing pending.');
+      setTimeout(load, 2500);
+    } catch (e) { setMsg(e.message); }
   }
   async function clear(what) { setSt(await api(`/api/import?what=${what}`, { method: 'DELETE' })); }
-  const c = st?.counts || {};
-  const left = (c.pending || 0) + (c.running || 0);
+  const total = (c.pending || 0) + (c.running || 0) + (c.done || 0) + (c.skipped || 0) + (c.error || 0);
+  const fin = (c.done || 0) + (c.skipped || 0) + (c.error || 0);
+  const eta = active ? Math.ceil(((c.pending || 0) + (c.running || 0)) * 25 / Math.max(1, c.running || workers) / 60) : 0;
   return (
     <div className="cq-grid2">
       <div className="cq-panel">
         <div className="cq-panel-head"><b>Import pages</b></div>
-        <p className="cq-help">Paste URLs (one per line) and/or a sitemap. Pages go into a queue. Pages whose content hasn't changed since the last check are skipped, so re-importing is cheap. Each new check costs 1 Firecrawl credit and about $0.05–0.15 of Claude.</p>
+        <p className="cq-help">Paste URLs (one per line) and/or a sitemap. Pages go into a queue that runs on the server, so you can close the tab. Pages whose content hasn't changed since the last check are skipped, so re-importing is cheap. Each new check costs 1 Firecrawl credit plus Claude tokens.</p>
         <textarea className="cq-textarea" rows={7} placeholder={'https://gameboost.com/blog/...\nhttps://gameboost.com/fortnite/accounts'} value={urls} onChange={e => setUrls(e.target.value)} />
-        <div className="cq-row">
-          <input className="cq-input grow" placeholder="Sitemap URL (optional), e.g. https://gameboost.com/sitemap.xml" value={sitemap} onChange={e => setSitemap(e.target.value)} />
-        </div>
+        <div className="cq-row"><input className="cq-input grow" placeholder="Sitemap URL (optional), e.g. https://gameboost.com/sitemap.xml" value={sitemap} onChange={e => setSitemap(e.target.value)} /></div>
         <div className="cq-row">
           <input className="cq-input grow" placeholder="Only URLs containing… e.g. /blog/" value={filter} onChange={e => setFilter(e.target.value)} />
           <label className="cq-faint-i">Max <input className="cq-input xs" type="number" value={max} onChange={e => setMax(e.target.value)} /></label>
-          <button className="btn primary" onClick={add} disabled={!urls.trim() && !sitemap.trim()}>Add to queue</button>
+        </div>
+        <div className="cq-row">
+          <button className="btn primary" onClick={() => add(true)} disabled={!urls.trim() && !sitemap.trim()}>Add and start</button>
+          <button className="btn" onClick={() => add(false)} disabled={!urls.trim() && !sitemap.trim()}>Add only</button>
         </div>
         {msg && <div className="cq-faint-i">{msg}</div>}
       </div>
       <div className="cq-panel">
-        <div className="cq-panel-head"><b>Queue</b><button className="cq-link" onClick={load}>Refresh</button></div>
+        <div className="cq-panel-head"><b>Queue</b>{active && <span className="cq-live"><span className="cq-dot" />Working · ~{eta} min left</span>}<button className="cq-link" onClick={load}>Refresh</button></div>
+        {total > 0 && <div className="cq-bar"><div style={{ width: `${(fin / total) * 100}%`, background: 'var(--up)' }} /></div>}
         <div className="cq-kpis">
-          <div><span>Pending</span><b>{n(c.pending)}</b></div><div><span>Running</span><b>{n(c.running)}</b></div>
+          <div><span>Pending</span><b>{n(c.pending)}</b></div><div><span>Running</span><b style={{ color: c.running ? 'var(--blue-light)' : undefined }}>{n(c.running)}</b></div>
           <div><span>Done</span><b style={{ color: 'var(--up)' }}>{n(c.done)}</b></div><div><span>Unchanged</span><b>{n(c.skipped)}</b></div>
           <div><span>Errors</span><b style={{ color: c.error ? 'var(--down)' : undefined }}>{n(c.error)}</b></div>
         </div>
         <div className="cq-row">
-          {!running ? <button className="btn primary" onClick={start} disabled={!left}>Process queue now</button> : <button className="btn" onClick={() => { stop.current = true; }}>Stop after current</button>}
-          <label className="cq-faint-i">Parallel <select className="sel" value={workers} onChange={e => setWorkers(Number(e.target.value))} disabled={running}>{[1, 2, 3, 4].map(v => <option key={v}>{v}</option>)}</select></label>
+          <button className="btn primary" onClick={start} disabled={!c.pending}>Start processing</button>
+          <label className="cq-faint-i">Parallel workers <select className="sel" value={workers} onChange={e => setWorkers(Number(e.target.value))}>{[1, 2, 3, 4, 6, 8].map(v => <option key={v}>{v}</option>)}</select></label>
           <button className="btn sm ghost" onClick={() => clear('retry')} disabled={!c.error}>Retry errors</button>
           <button className="btn sm ghost" onClick={() => clear('finished')}>Clear finished</button>
-          <button className="btn sm ghost" onClick={() => clear('pending')} disabled={!c.pending}>Clear pending</button>
+          <button className="btn sm ghost" onClick={() => clear('pending')} disabled={!c.pending}>Stop (clear pending)</button>
         </div>
-        <p className="cq-help">{running ? 'Processing. Keep this tab open.' : 'Processing runs while this tab is open. Anything left is also processed automatically every night (03:17 UTC, about 4 minutes of work).'}</p>
+        <p className="cq-help">Runs on the server: close the tab anytime. ~25s per page per worker, so 4 workers ≈ 10 pages/min. More workers = faster, limited by your Firecrawl plan's concurrent requests and Anthropic rate limits. Anything left over also runs nightly at 03:17 UTC.</p>
         <table className="cq-table sm"><thead><tr><th>URL</th><th>Status</th><th>When</th></tr></thead>
           <tbody>{(st?.recent || []).map(q => (
-            <tr key={q.id}><td title={q.url}>{path(q.url)}</td><td><span className={`cq-qs cq-qs-${q.status}`}>{q.status === 'skipped' ? 'unchanged' : q.status}</span>{q.error && <div className="cq-faint">{q.error.slice(0, 120)}</div>}</td><td>{fmtDate(q.finished_at || q.created_at)}</td></tr>
+            <tr key={q.id}><td title={q.url}>{path(q.url)}</td><td><span className={`cq-qs cq-qs-${q.status}`}>{q.status === 'skipped' ? 'unchanged' : q.status}</span>{q.error && <div className="cq-faint">{q.error.slice(0, 140)}</div>}</td><td>{fmtDate(q.finished_at || q.started_at || q.created_at)}</td></tr>
           ))}</tbody></table>
       </div>
     </div>
