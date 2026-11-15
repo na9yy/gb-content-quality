@@ -12,6 +12,7 @@ export async function POST(req) {
   while (Date.now() - t0 < 230000) {
     const r = await processNext({ bulk: true }).catch(e => ({ error: String(e.message || e) }));
     if (r.done) { empty = true; break; }
+    if (r.rateLimited) { await new Promise(res => setTimeout(res, 30000)); continue; }
     n++;
   }
   if (!empty && hop < 200) await fireSelf(new URL(req.url).origin, '/api/queue/worker', { hop: hop + 1 });

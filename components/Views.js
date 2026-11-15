@@ -11,7 +11,7 @@ export function ImportView({ onChanged }) {
   const [max, setMax] = useState(200);
   const [st, setSt] = useState(null);
   const [msg, setMsg] = useState('');
-  const [workers, setWorkers] = useState(4);
+  const [workers, setWorkers] = useState(3);
   const lastDone = useRef(null);
   const load = () => api('/api/import').then(j => {
     setSt(j);
@@ -74,7 +74,7 @@ export function ImportView({ onChanged }) {
           <button className="btn sm ghost" onClick={() => clear('finished')}>Clear finished</button>
           <button className="btn sm ghost" onClick={() => clear('pending')} disabled={!c.pending}>Stop (clear pending)</button>
         </div>
-        <p className="cq-help">Runs on the server: close the tab anytime. ~25s per page per worker, so 4 workers ≈ 10 pages/min. More workers = faster, limited by your Firecrawl plan's concurrent requests and Anthropic rate limits. Anything left over also runs nightly at 03:17 UTC.</p>
+        <p className="cq-help">Runs on the server: close the tab anytime. ~25s per page per worker, so 4 workers ≈ 10 pages/min. More workers = faster, up to your Firecrawl plan's per-minute limit. If Firecrawl says slow down, pages wait and retry automatically (shown as Waiting), they don't fail. Anything left over also runs nightly at 03:17 UTC.</p>
         <table className="cq-table sm"><thead><tr><th>URL</th><th>Status</th><th>When</th></tr></thead>
           <tbody>{(st?.recent || []).map(q => (
             <tr key={q.id}><td title={q.url}>{path(q.url)}</td><td><span className={`cq-qs cq-qs-${q.status}`}>{q.status === 'skipped' ? 'unchanged' : q.status}</span>{q.error && <div className="cq-faint">{q.error.slice(0, 140)}</div>}</td><td>{fmtDate(q.finished_at || q.started_at || q.created_at)}</td></tr>

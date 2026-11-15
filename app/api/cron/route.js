@@ -9,6 +9,7 @@ export async function GET(req) {
   while (Date.now() - t0 < 230000) {
     const r = await processNext().catch(e => ({ error: String(e.message || e) }));
     if (r.done) break;
+    if (r.rateLimited) { await new Promise(res => setTimeout(res, 30000)); continue; }
     done.push(r);
   }
   return NextResponse.json({ processed: done.length, results: done });
