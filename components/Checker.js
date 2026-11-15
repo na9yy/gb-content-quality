@@ -25,7 +25,14 @@ export default function Checker() {
     catch (e) { setListErr(`Could not load list: ${e.message}`); return []; }
   }
   const loadUsage = () => api('/api/usage').then(setUsage).catch(() => {});
-  useEffect(() => { loadList(); loadUsage(); api('/api/alerts').then(j => setAlertCount(j.alerts.filter(x => x.severity === 'high').length)).catch(() => {}); }, []);
+  // Reload the list every time you open the Pages tab, and every 20s while it's open.
+  useEffect(() => {
+    if (tab !== 'pages') return;
+    loadList();
+    const t = setInterval(() => { if (document.visibilityState === 'visible') loadList(); }, 20000);
+    return () => clearInterval(t);
+  }, [tab]);
+  useEffect(() => { loadUsage(); api('/api/alerts').then(j => setAlertCount(j.alerts.filter(x => x.severity === 'high').length)).catch(() => {}); }, []);
 
   async function check(e) {
     e?.preventDefault(); if (!url || busy) return;
@@ -72,7 +79,7 @@ export default function Checker() {
             <aside className="cq-side">
               <Usage u={usage} onRefresh={loadUsage} />
               {listErr && <div className="cq-err sm">{listErr}</div>}
-              <div className="cq-side-head">Checked pages <span>{latest.length}</span></div>
+              <div className="cq-side-head">Checked pages <span>{latest.length} <button className="cq-link" onClick={loadList}>Refresh</button></span></div>
               <input className="cq-filter" placeholder="Filter by URL, title, game…" value={q} onChange={e => setQ(e.target.value)} />
               <div className="cq-row tight">
                 <select className="sel" value={typeF} onChange={e => setTypeF(e.target.value)}><option value="all">All types</option><option value="blog">Blogs</option><option value="review">Reviews</option><option value="product">Products</option></select>
