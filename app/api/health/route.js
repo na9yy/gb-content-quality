@@ -3,12 +3,12 @@ import crypto from 'node:crypto';
 
 export const dynamic = 'force-dynamic';
 
-const KEYS = ['DASHBOARD_PASSWORD','AUTH_SECRET','CRON_SECRET','SUPABASE_URL','SUPABASE_SERVICE_ROLE_KEY','ANTHROPIC_API_KEY','FIRECRAWL_API_KEY','DATAFORSEO_LOGIN','DATAFORSEO_PASSWORD','OPENAI_API_KEY','GSC_SERVICE_ACCOUNT_JSON','GSC_SITE_URL'];
+const KEYS = ['DASHBOARD_PASSWORD','AUTH_SECRET','CRON_SECRET','SUPABASE_URL','SUPABASE_SERVICE_ROLE_KEY','ANTHROPIC_API_KEY','FIRECRAWL_API_KEY','DATAFORSEO_LOGIN','DATAFORSEO_PASSWORD','GSC_SERVICE_ACCOUNT_JSON','GOOGLE_SERVICE_ACCOUNT_JSON','GSC_SITE_URL'];
 
 async function safe(fn) { try { return await fn(); } catch (e) { return { ok: false, error: String(e.message || e).slice(0, 200) }; } }
 
 async function gsc() {
-  const raw = process.env.GSC_SERVICE_ACCOUNT_JSON;
+  const raw = process.env.GSC_SERVICE_ACCOUNT_JSON || process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
   if (!raw) return { ok: false, error: 'missing' };
   let sa;
   try { sa = JSON.parse(raw); } catch { return { ok: false, error: 'not valid JSON (pasted only part of the file?)' }; }
@@ -26,17 +26,13 @@ async function gsc() {
 }
 
 async function supabase() {
-  const r = await fetch(`${process.env.SUPABASE_URL}/rest/v1/domain_blocklist?select=domain`, { headers: { apikey: process.env.SUPABASE_SERVICE_ROLE_KEY, authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`, 'accept-profile': 'content_quality' } });
+  const r = await fetch(`${process.env.SUPABASE_URL}/rest/v1/domain_blocklist?select=domain`, { headers: { apikey: process.env.SUPABASE_SERVICE_ROLE_KEY, authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` } });
   const host = (process.env.SUPABASE_URL || '').replace(/^https:\/\//, '').split('.')[0];
   return { ok: r.ok, status: r.status, project_ref: host, body: r.ok ? await r.json() : (await r.text()).slice(0, 200) };
 }
 
 async function anthropic() {
   const r = await fetch('https://api.anthropic.com/v1/models?limit=1', { headers: { 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' } });
-  return { ok: r.ok, status: r.status };
-}
-async function openai() {
-  const r = await fetch('https://api.openai.com/v1/models', { headers: { authorization: `Bearer ${process.env.OPENAI_API_KEY}` } });
   return { ok: r.ok, status: r.status };
 }
 async function firecrawl() {
@@ -55,6 +51,6 @@ export async function GET(req) {
   const ok = req.headers.get('authorization') === `Bearer ${process.env.CRON_SECRET}` || key === process.env.CRON_SECRET;
   if (!process.env.CRON_SECRET || !ok) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const present = Object.fromEntries(KEYS.map(k => [k, !!process.env[k]]));
-  const [g, s, a, o, f, d] = await Promise.all([safe(gsc), safe(supabase), safe(anthropic), safe(openai), safe(firecrawl), safe(dataforseo)]);
-  return NextResponse.json({ present, gsc: g, supabase: s, anthropic: a, openai: o, firecrawl: f, dataforseo: d });
+  const [g, s, a, f, d] = await Promise.all([safe(gsc), safe(supabase), safe(anthropic), safe(firecrawl), safe(dataforseo)]);
+  return NextResponse.json({ present, gsc: g, supabase: s, anthropic: a, firecrawl: f, dataforseo: d });
 }

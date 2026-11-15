@@ -1,6 +1,4 @@
 -- GameBoost Content Quality: initial schema
-create schema if not exists content_quality;
-set search_path = content_quality;
 
 -- Pages we score
 create table pages (
@@ -133,11 +131,10 @@ alter table gsc_stats enable row level security;
 alter table manual_labels enable row level security;
 
 -- Service role (server) gets full access; anon/auth get none
-grant usage on schema content_quality to service_role;
-grant all on all tables in schema content_quality to service_role;
-grant all on all sequences in schema content_quality to service_role;
-alter default privileges in schema content_quality grant all on tables to service_role;
-alter default privileges in schema content_quality grant all on sequences to service_role;
+grant all on all tables in schema public to service_role;
+grant all on all sequences in schema public to service_role;
+alter default privileges in schema public grant all on tables to service_role;
+alter default privileges in schema public grant all on sequences to service_role;
 
 -- Seed: never use our own domain as a reference
 insert into domain_blocklist (domain, reason) values ('gameboost.com', 'own_domain');
